@@ -34,11 +34,11 @@ import { useDispatch } from 'react-redux';
 import { fetchUserByNameorEmail } from '../../api/userApi';
 import { fetchChatsByUserId } from '../../api/chatApi';
 import UserListItem from "../UserAvatar/UserListItem";
-// import { getSender } from "../../config/ChatLogics";
-// import { ChatState } from "../../Context/ChatProvider";
+import { getSender } from "../../config/ChatLogics";
+import { setNotification } from '../../store/slices/notifySlice';
 
 const SideDrawer = () => {
-    const { user, chats } = useLocalStorage();
+    const { user, chats,notification } = useLocalStorage();
     const { isOpen, onOpen, onClose } = useDisclosure();
     const toast = useToast();
     const dispatch = useDispatch();
@@ -131,8 +131,29 @@ const SideDrawer = () => {
                 <div>
                     <Menu>
                         <MenuButton p={1}>
+                            <NotificationBadge
+                            count={notification.length}
+                            effect = {Effect.SCALE}
+                            >
+                            </NotificationBadge>
                             <BellIcon fontSize="2xl" m={1} />
                         </MenuButton>
+                        <MenuList p={2}>
+                            {!notification.length && 'No Messages'}
+                            {notification.map((notif) =>(
+                                <MenuItem key={notif._id}
+                                onClick={()=>{
+                                    dispatch(addSelectedChat(notif.chat));
+                                    dispatch(setNotification(notification.filter((n) => n !== notif)))
+                                }}
+                                >
+                                    {notif.chat.isGroupChat 
+                                    ? `New Messages in ${notif.chat.chatName}`
+                                    : `Message from ${getSender(user,notif.chat.users)}`
+                                }
+                                </MenuItem>
+                            ))}
+                        </MenuList>
                     </Menu>
                     <Menu>
                         <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>

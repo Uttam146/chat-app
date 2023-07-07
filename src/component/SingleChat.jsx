@@ -13,8 +13,12 @@ import animationData from "../animations/typing.json";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModel";
 import whatsapp from "../assets/whatsapp.png";
 import { addSelectedChat } from '../store/slices/chatSlice';
-import { sendMessages,getMessages } from '../api/messageApi';
+import { setNotification } from '../store/slices/notifySlice';
+import { sendMessages, getMessages } from '../api/messageApi';
+import { useDispatch } from 'react-redux';
 import io from "socket.io-client";
+import useSound from 'use-sound';
+import audio from '../assets/whatssapp_web.mp3'
 import './style.css';
 
 const ENDPOINT = "http://localhost:8000";
@@ -28,7 +32,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     const [socketConnected, setSocketConnected] = useState(false);
     const [typing, setTyping] = useState(false);
     const [istyping, setIsTyping] = useState(false);
+    const dispatch = useDispatch();
     const toast = useToast();
+    const [play] = useSound(
+        audio,
+        { volume: 0.1 });
 
     const defaultOptions = {
         loop: true,
@@ -40,24 +48,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     };
 
     const fetchMessages = async () => {
-        if (!selectedChat) return;
+        if (!selectedChat.users) return;
 
         try {
-          setLoading(true);
-          const { data } = await getMessages(selectedChat._id,user.token);
-          setMessages(data);
-          setLoading(false);
+            setLoading(true);
+            const { data } = await getMessages(selectedChat._id, user.token);
+            setMessages(data);
+            setLoading(false);
 
-        socket.emit("join chat", selectedChat._id);
+            socket.emit("join chat", selectedChat._id);
         } catch (error) {
-          toast({
-            title: "Error Occured!",
-            description: "Failed to Load the Messages",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-            position: "bottom",
-          });
+            toast({
+                title: "Error Occured!",
+                description: "Failed to Load the Messages",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+                position: "bottom",
+            });
         }
     };
 
@@ -98,17 +106,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     useEffect(() => {
         socket.on("message recieved", (newMessageRecieved) => {
             console.log("new message is received");
-          if (
-            !selectedChatCompare || // if chat is not selected or doesn't match current chat
-            selectedChatCompare._id !== newMessageRecieved.chat._id
-          ) {
-            // if (!notification.includes(newMessageRecieved)) {
-            //   setNotification([newMessageRecieved, ...notification]);
-            //   setFetchAgain(!fetchAgain);
-            // }
-          } else {
-            setMessages([...messages, newMessageRecieved]);
-          }
+            if (
+                !selectedChatCompare || // if chat is not selected or doesn't match current chat
+                selectedChatCompare._id !== newMessageRecieved.chat._id
+            ) {
+                if (!notification.includes(newMessageRecieved)) {
+                    dispatch(setNotification([newMessageRecieved, ...notification]));
+                    setFetchAgain(!fetchAgain);
+                    play();
+                }
+            } else {
+                setMessages([...messages, newMessageRecieved]);
+            }
         });
     });
 
@@ -118,23 +127,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         if (!socketConnected) return;
 
         if (!typing) {
-          setTyping(true);
-          socket.emit("typing", selectedChat._id);
+            setTyping(true);
+            socket.emit("typing", selectedChat._id);
         }
         let lastTypingTime = new Date().getTime();
         var timerLength = 3000;
         setTimeout(() => {
-          var timeNow = new Date().getTime();
-          var timeDiff = timeNow - lastTypingTime;
-          if (timeDiff >= timerLength && typing) {
-            socket.emit("stop typing", selectedChat._id);
-            setTyping(false);
-          }
+            var timeNow = new Date().getTime();
+            var timeDiff = timeNow - lastTypingTime;
+            if (timeDiff >= timerLength && typing) {
+                socket.emit("stop typing", selectedChat._id);
+                setTyping(false);
+            }
         }, timerLength);
     };
     return (
         <>
-            {selectedChat ? (
+            {selectedChat.users ? (
                 <>
                     <Text
                         fontSize={{ base: "28px", md: "30px" }}
@@ -149,7 +158,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                         <IconButton
                             display={{ base: "flex", md: "none" }}
                             icon={<ArrowBackIcon />}
-                            onClick={() => addSelectedChat("")}
+                            onClick={() => dispatch(addSelectedChat(""))}
                         />
                         {messages.length &&
                             (!selectedChat.isGroupChat ? (

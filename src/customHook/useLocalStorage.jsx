@@ -5,8 +5,7 @@ const useLocalStorage = () => {
     const user = useSelector(state => { return state.user });
     const chats = useSelector(state => { return state.chat.chats });
     const selectedChat = useSelector(state => { return state.chat.selectedChat });
-    const [notification, setNotification] = useState([]);
-
+    const notification = useSelector(state => state.notify.notification );
     return { user, chats, selectedChat, notification };
 }
 export default useLocalStorage;
